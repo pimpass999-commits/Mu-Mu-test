@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useTaskFlow } from '../hooks/useTaskFlow';
+import React, { useEffect, useState } from 'react';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { SummaryCards } from '../components/dashboard/SummaryCards';
@@ -9,16 +8,71 @@ import { Calendar, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { Task } from '../types';
 import { TaskDetailModal } from '../components/modals/TaskDetailModal';
+import {
+  getDashboardMyTasks,
+  getDashboardSummary,
+  getTeamActivity,
+  getUpcomingDeadlines,
+} from '../lib/api';
+import { useTaskFlow } from '../hooks/useTaskFlow';
 
 export const Dashboard: React.FC = () => {
-  const { tasks, currentUser } = useTaskFlow();
+  const { currentUser } = useTaskFlow();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [summary, setSummary] = useState<{
+    totalTasks: number;
+    completedTasks: number;
+    inProgressTasks: number;
+    urgentTasks: number;
+  }>();
+  const [myTasks, setMyTasks] = useState<Task[]>([]);
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState<Task[]>([]);
+  const [teamActivity, setTeamActivity] = useState<Array<{
+    user: { id: string; name: string; email: string; role: string; avatar: string };
+    lastTaskTitle: string | null;
+    assignedTaskCount: number;
+    completedTaskCount: number;
+    progressPercent: number;
+  }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const myTasks = tasks.filter(t => t.assigneeId === currentUser.id).slice(0, 4);
-  const upcomingDeadlines = tasks
-    .filter(t => t.status !== 'Done')
-    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-    .slice(0, 4);
+  useEffect(() => {
+    let ignore = false;
+
+    const loadDashboard = async () => {
+      setIsLoading(true);
+
+      try {
+        const [summaryData, myTasksData, upcomingData, teamActivityData] = await Promise.all([
+          getDashboardSummary(),
+          getDashboardMyTasks(4),
+          getUpcomingDeadlines(4),
+          getTeamActivity(3),
+        ]);
+
+        if (!ignore) {
+          setSummary(summaryData);
+          setMyTasks(myTasksData);
+          setUpcomingDeadlines(upcomingData);
+          setTeamActivity(teamActivityData);
+        }
+      } catch (error) {
+        if (!ignore) {
+          console.error('Failed to load dashboard data', error);
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadDashboard();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
@@ -28,16 +82,16 @@ export const Dashboard: React.FC = () => {
         <main className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full">
           <section>
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome back, {currentUser.name.split(' ')[0]}! 👋</h1>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
               <p className="text-slate-500 dark:text-slate-400">Here's what's happening with your projects today.</p>
             </div>
-            <SummaryCards />
+            <SummaryCards summary={summary} isLoading={isLoading} />
           </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
               <RecentProjects />
-              
+
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                   <h3 className="font-semibold text-slate-900 dark:text-white">My Tasks</h3>
@@ -46,9 +100,12 @@ export const Dashboard: React.FC = () => {
                   </button>
                 </div>
                 <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {myTasks.map(task => (
+                  {myTasks.map((task) => (
                     <TaskCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
                   ))}
+                  {!isLoading && myTasks.length === 0 && (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No assigned tasks yet.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -59,7 +116,7 @@ export const Dashboard: React.FC = () => {
                   <h3 className="font-semibold text-slate-900 dark:text-white">Upcoming Deadlines</h3>
                 </div>
                 <div className="p-4 space-y-4">
-                  {upcomingDeadlines.map(task => (
+                  {upcomingDeadlines.map((task) => (
                     <div key={task.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer" onClick={() => setSelectedTask(task)}>
                       <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-900/20 flex flex-col items-center justify-center text-red-600 dark:text-red-400 font-bold">
                         <span className="text-[10px] uppercase leading-none">{format(new Date(task.dueDate), 'MMM')}</span>
@@ -74,6 +131,9 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </div>
                   ))}
+                  {!isLoading && upcomingDeadlines.length === 0 && (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No upcoming deadlines.</p>
+                  )}
                 </div>
               </div>
 
@@ -81,37 +141,33 @@ export const Dashboard: React.FC = () => {
                 <h3 className="font-bold text-lg mb-2">Team Activity</h3>
                 <p className="text-blue-100 text-sm mb-4">See what your teammates are working on in real-time.</p>
                 <div className="space-y-5">
-                  {useTaskFlow().users.filter(u => u.id !== currentUser.id).slice(0, 3).map(user => {
-                    const userTasks = tasks.filter(t => t.assigneeId === user.id);
-                    const lastTask = [...userTasks].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-                    const completedTasks = userTasks.filter(t => t.status === 'Done').length;
-                    const progress = userTasks.length > 0 ? (completedTasks / userTasks.length) * 100 : Math.random() * 40 + 20;
-                    
-                    return (
-                      <div key={user.id} className="space-y-2">
-                        <div className="flex items-center justify-between text-xs font-medium">
-                          <div className="flex items-center gap-2">
-                            <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full border border-white/30" referrerPolicy="no-referrer" />
-                            <div className="flex flex-col">
-                              <span className="font-bold">{user.name}</span>
-                              {lastTask && (
-                                <span className="text-[10px] text-blue-200 truncate max-w-[120px]">
-                                  Working on: {lastTask.title}
-                                </span>
-                              )}
-                            </div>
+                  {teamActivity.map((item) => (
+                    <div key={item.user.id} className="space-y-2">
+                      <div className="flex items-center justify-between text-xs font-medium">
+                        <div className="flex items-center gap-2">
+                          <img src={item.user.avatar} alt={item.user.name} className="w-6 h-6 rounded-full border border-white/30" referrerPolicy="no-referrer" />
+                          <div className="flex flex-col">
+                            <span className="font-bold">{item.user.name}</span>
+                            {item.lastTaskTitle && (
+                              <span className="text-[10px] text-blue-200 truncate max-w-[120px]">
+                                Working on: {item.lastTaskTitle}
+                              </span>
+                            )}
                           </div>
-                          <span className="font-bold">{Math.round(progress)}%</span>
                         </div>
-                        <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-white rounded-full transition-all duration-500" 
-                            style={{ width: `${progress}%` }}
-                          ></div>
-                        </div>
+                        <span className="font-bold">{item.progressPercent}%</span>
                       </div>
-                    );
-                  })}
+                      <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-white rounded-full transition-all duration-500"
+                          style={{ width: `${item.progressPercent}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                  {!isLoading && teamActivity.length === 0 && (
+                    <p className="text-sm text-blue-100">No teammate activity yet.</p>
+                  )}
                 </div>
               </div>
             </div>

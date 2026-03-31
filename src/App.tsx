@@ -1,68 +1,127 @@
-import { useState, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { TaskFlowProvider } from './hooks/useTaskFlow';
 import { ThemeProvider } from './hooks/useTheme';
-import { Dashboard } from './pages/Dashboard';
-import { Projects } from './pages/Projects';
-import { ProjectDetail } from './pages/ProjectDetail';
-import { MyTasks } from './pages/MyTasks';
-import { Settings } from './pages/Settings';
-import { Login } from './pages/Login';
-import { Landing } from './pages/Landing';
-import { Analytics } from './pages/Analytics';
-import { NotFound } from './pages/NotFound';
+import {
+  clearStoredSession,
+  getCurrentUser,
+  getStoredCurrentUser,
+  hasStoredSession,
+  login as loginRequest,
+  logout as logoutRequest,
+} from './lib/api';
+import { User } from './types';
+
+const Dashboard = lazy(() => import('./pages/Dashboard').then((module) => ({ default: module.Dashboard })));
+const Projects = lazy(() => import('./pages/Projects').then((module) => ({ default: module.Projects })));
+const ProjectDetail = lazy(() => import('./pages/ProjectDetail').then((module) => ({ default: module.ProjectDetail })));
+const MyTasks = lazy(() => import('./pages/MyTasks').then((module) => ({ default: module.MyTasks })));
+const Settings = lazy(() => import('./pages/Settings').then((module) => ({ default: module.Settings })));
+const Login = lazy(() => import('./pages/Login').then((module) => ({ default: module.Login })));
+const Landing = lazy(() => import('./pages/Landing').then((module) => ({ default: module.Landing })));
+const Analytics = lazy(() => import('./pages/Analytics').then((module) => ({ default: module.Analytics })));
+const NotFound = lazy(() => import('./pages/NotFound').then((module) => ({ default: module.NotFound })));
 
 export default function App() {
-  // Simple auth simulation
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('isAuthenticated') === 'true';
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(() => getStoredCurrentUser());
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-  const login = () => {
-    setIsAuthenticated(true);
-    localStorage.setItem('isAuthenticated', 'true');
+  useEffect(() => {
+    let ignore = false;
+
+    const bootstrapAuth = async () => {
+      if (!hasStoredSession()) {
+        if (!ignore) {
+          setCurrentUser(null);
+          setIsAuthLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const user = await getCurrentUser();
+        if (!ignore) {
+          setCurrentUser(user);
+        }
+      } catch {
+        clearStoredSession();
+        if (!ignore) {
+          setCurrentUser(null);
+        }
+      } finally {
+        if (!ignore) {
+          setIsAuthLoading(false);
+        }
+      }
+    };
+
+    void bootstrapAuth();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const result = await loginRequest(email, password);
+    setCurrentUser(result.user);
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('isAuthenticated');
+  const logout = async () => {
+    await logoutRequest();
+    setCurrentUser(null);
   };
 
   return (
     <ThemeProvider>
-      <TaskFlowProvider>
+      <TaskFlowProvider currentUser={currentUser} isAuthenticated={!!currentUser}>
         <Router>
+          {isAuthLoading ? (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300">
+              Loading TaskFlow...
+            </div>
+          ) : (
+          <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300">
+              Loading page...
+            </div>
+          }>
           <Routes>
             <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login onLogin={login} />} />
+            <Route
+              path="/login"
+              element={currentUser ? <Navigate to="/dashboard" replace /> : <Login onLogin={login} />}
+            />
             
             <Route
               path="/dashboard"
-              element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />}
+              element={currentUser ? <Dashboard /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/projects"
-              element={isAuthenticated ? <Projects /> : <Navigate to="/login" />}
+              element={currentUser ? <Projects /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/projects/:projectId"
-              element={isAuthenticated ? <ProjectDetail /> : <Navigate to="/login" />}
+              element={currentUser ? <ProjectDetail /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/my-tasks"
-              element={isAuthenticated ? <MyTasks /> : <Navigate to="/login" />}
+              element={currentUser ? <MyTasks /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/settings"
-              element={isAuthenticated ? <Settings onLogout={logout} /> : <Navigate to="/login" />}
+              element={currentUser ? <Settings onLogout={logout} /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/analytics"
-              element={isAuthenticated ? <Analytics /> : <Navigate to="/login" />}
+              element={currentUser ? <Analytics /> : <Navigate to="/login" replace />}
             />
             
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
+          )}
         </Router>
       </TaskFlowProvider>
     </ThemeProvider>

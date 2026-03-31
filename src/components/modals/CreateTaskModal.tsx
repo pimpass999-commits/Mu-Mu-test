@@ -23,34 +23,58 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClos
   const [status, setStatus] = useState<Status>(initialStatus || 'To Do');
   const [dueDate, setDueDate] = useState('');
   const [tags, setTags] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (initialProjectId) setProjectId(initialProjectId);
     if (initialStatus) setStatus(initialStatus);
   }, [initialProjectId, initialStatus, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !projectId || !assigneeId || !dueDate) return;
+  useEffect(() => {
+    if (!projectId && projects[0]?.id) {
+      setProjectId(projects[0].id);
+    }
+    if (!assigneeId && users[0]?.id) {
+      setAssigneeId(users[0].id);
+    }
+  }, [assigneeId, projectId, projects, users]);
 
-    addTask({
-      title,
-      description,
-      projectId,
-      assigneeId,
-      priority,
-      status,
-      dueDate,
-      tags: tags.split(',').map(t => t.trim()).filter(t => t !== ''),
-    });
-    
-    onClose();
-    // Reset form
+  const resetForm = () => {
     setTitle('');
     setDescription('');
     setPriority('Medium');
     setDueDate('');
     setTags('');
+    setError('');
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!title || !projectId || !assigneeId || !dueDate) return;
+
+    setIsSaving(true);
+    setError('');
+
+    try {
+      await addTask({
+        title,
+        description,
+        projectId,
+        assigneeId,
+        priority,
+        status,
+        dueDate,
+        tags: tags.split(',').map(t => t.trim()).filter(t => t !== ''),
+      });
+
+      resetForm();
+      onClose();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to create task');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -196,13 +220,19 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ isOpen, onClos
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-slate-200 dark:placeholder-slate-500"
                 />
               </div>
+
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                  {error}
+                </div>
+              )}
             </form>
 
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-end gap-3 transition-colors">
-              <Button variant="outline" onClick={onClose}>
+              <Button variant="outline" onClick={onClose} disabled={isSaving}>
                 Cancel
               </Button>
-              <Button variant="primary" onClick={handleSubmit} disabled={!title || !dueDate}>
+              <Button variant="primary" onClick={() => void handleSubmit()} disabled={!title || !dueDate || isSaving} isLoading={isSaving}>
                 Create Task
               </Button>
             </div>

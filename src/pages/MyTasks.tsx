@@ -15,14 +15,16 @@ export const MyTasks: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const myTasks = tasks.filter(t => t.assigneeId === currentUser.id);
+  const getDateOnly = (value: string) => new Date(value).toISOString().split('T')[0];
   
   const filteredTasks = myTasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          task.description.toLowerCase().includes(searchQuery.toLowerCase());
     
     const today = new Date().toISOString().split('T')[0];
-    if (activeTab === 'today') return matchesSearch && task.dueDate === today && task.status !== 'Done';
-    if (activeTab === 'upcoming') return matchesSearch && task.dueDate > today && task.status !== 'Done';
+    const taskDate = getDateOnly(task.dueDate);
+    if (activeTab === 'today') return matchesSearch && taskDate === today && task.status !== 'Done';
+    if (activeTab === 'upcoming') return matchesSearch && taskDate > today && task.status !== 'Done';
     if (activeTab === 'completed') return matchesSearch && task.status === 'Done';
     return matchesSearch;
   });
@@ -70,8 +72,9 @@ export const MyTasks: React.FC = () => {
                   )}>
                     {myTasks.filter(t => {
                       const today = new Date().toISOString().split('T')[0];
-                      if (tab.id === 'today') return t.dueDate === today && t.status !== 'Done';
-                      if (tab.id === 'upcoming') return t.dueDate > today && t.status !== 'Done';
+                      const taskDate = getDateOnly(t.dueDate);
+                      if (tab.id === 'today') return taskDate === today && t.status !== 'Done';
+                      if (tab.id === 'upcoming') return taskDate > today && t.status !== 'Done';
                       if (tab.id === 'completed') return t.status === 'Done';
                       return true;
                     }).length}

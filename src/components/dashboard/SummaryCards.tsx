@@ -1,15 +1,22 @@
 import React from 'react';
 import { CheckCircle2, Clock, AlertCircle, ListTodo } from 'lucide-react';
-import { useTaskFlow } from '../../hooks/useTaskFlow';
 import { cn } from '../../utils/cn';
 
-export const SummaryCards: React.FC = () => {
-  const { tasks } = useTaskFlow();
-  
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.status === 'Done').length;
-  const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
-  const urgentTasks = tasks.filter(t => t.priority === 'Urgent').length;
+interface SummaryCardsProps {
+  summary?: {
+    totalTasks: number;
+    completedTasks: number;
+    inProgressTasks: number;
+    urgentTasks: number;
+  };
+  isLoading?: boolean;
+}
+
+export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, isLoading = false }) => {
+  const totalTasks = summary?.totalTasks ?? 0;
+  const completedTasks = summary?.completedTasks ?? 0;
+  const inProgressTasks = summary?.inProgressTasks ?? 0;
+  const urgentTasks = summary?.urgentTasks ?? 0;
 
   const stats = [
     { label: 'Total Tasks', value: totalTasks, icon: ListTodo, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -29,7 +36,7 @@ export const SummaryCards: React.FC = () => {
           </div>
           <div>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{stat.value}</h3>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{isLoading ? '...' : stat.value}</h3>
           </div>
         </div>
       ))}

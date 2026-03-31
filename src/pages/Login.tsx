@@ -4,22 +4,29 @@ import { CheckSquare, Mail, Lock, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (email: string, password: string) => Promise<void>;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('pimpass999@gmail.com');
+  const [password, setPassword] = useState('password123');
+  const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate login
-    setTimeout(() => {
-      setIsLoading(false);
-      onLogin();
+    setError('');
+
+    try {
+      await onLogin(email, password);
       navigate('/dashboard');
-    }, 1000);
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : 'Unable to sign in');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -55,7 +62,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   type="email"
                   autoComplete="email"
                   required
-                  defaultValue="pimpass999@gmail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="block w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 py-3 pl-10 pr-4 text-slate-900 dark:text-slate-100 shadow-sm focus:ring-2 focus:ring-blue-600 focus:border-transparent sm:text-sm transition-all"
                 />
               </div>
@@ -80,11 +88,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   type="password"
                   autoComplete="current-password"
                   required
-                  defaultValue="password123"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="block w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 py-3 pl-10 pr-4 text-slate-900 dark:text-slate-100 shadow-sm focus:ring-2 focus:ring-blue-600 focus:border-transparent sm:text-sm transition-all"
                 />
               </div>
             </div>
+
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                {error}
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <input

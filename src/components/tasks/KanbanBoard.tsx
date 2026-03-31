@@ -17,7 +17,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskClick, on
   const columns: Status[] = ['To Do', 'In Progress', 'Review', 'Done'];
 
   const getTasksByStatus = (status: Status) => {
-    return tasks.filter(task => task.status === status);
+    return tasks
+      .filter(task => task.status === status)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -32,49 +34,48 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskClick, on
       return;
     }
 
-    // Find the task being moved
     const movedTask = allTasks.find(t => t.id === draggableId);
     if (!movedTask) return;
+    const projectTasks = allTasks.filter((task) => task.projectId === movedTask.projectId);
+    const lanes = columns.reduce<Record<Status, Task[]>>((acc, status) => {
+      acc[status] = projectTasks
+        .filter((task) => task.status === status)
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+      return acc;
+    }, {
+      'To Do': [],
+      'In Progress': [],
+      Review: [],
+      Done: [],
+    });
 
-    // Create a copy of all tasks
-    const newAllTasks = [...allTasks];
-    
-    // Remove the task from its old position
-    const oldIndex = newAllTasks.findIndex(t => t.id === draggableId);
-    newAllTasks.splice(oldIndex, 1);
+    const sourceLane = [...lanes[source.droppableId as Status]];
+    const destinationLane =
+      source.droppableId === destination.droppableId
+        ? sourceLane
+        : [...lanes[destination.droppableId as Status]];
 
-    // Update the task's status
-    const updatedTask = {
-      ...movedTask,
+    const movedIndex = sourceLane.findIndex((task) => task.id === draggableId);
+    if (movedIndex === -1) return;
+
+    const [removedTask] = sourceLane.splice(movedIndex, 1);
+    destinationLane.splice(destination.index, 0, {
+      ...removedTask,
       status: destination.droppableId as Status,
-      updatedAt: new Date().toISOString(),
-    };
+    });
 
-    // Find the correct insertion point in the global array
-    const destinationStatus = destination.droppableId as Status;
-    const tasksInDestStatus = tasks.filter(t => t.status === destinationStatus);
-    
-    let globalInsertIndex: number;
-    if (tasksInDestStatus.length > 0 && destination.index < tasksInDestStatus.length) {
-      const targetTask = tasksInDestStatus[destination.index];
-      globalInsertIndex = newAllTasks.findIndex(t => t.id === targetTask.id);
-    } else if (tasksInDestStatus.length > 0) {
-      // Insert after the last task in the destination column (from the filtered list)
-      const lastTask = tasksInDestStatus[tasksInDestStatus.length - 1];
-      globalInsertIndex = newAllTasks.findIndex(t => t.id === lastTask.id) + 1;
-    } else {
-      // If the column is empty in the filtered view, we'll just put it at the end of all tasks
-      // or we could try to find the last task of that status in the global list
-      const lastTaskOfStatus = [...newAllTasks].reverse().find(t => t.status === destinationStatus);
-      if (lastTaskOfStatus) {
-        globalInsertIndex = newAllTasks.findIndex(t => t.id === lastTaskOfStatus.id) + 1;
-      } else {
-        globalInsertIndex = newAllTasks.length;
-      }
-    }
+    lanes[source.droppableId as Status] = sourceLane;
+    lanes[destination.droppableId as Status] = destinationLane;
 
-    newAllTasks.splice(globalInsertIndex, 0, updatedTask);
-    reorderTasks(newAllTasks);
+    const items = columns.flatMap((status) =>
+      lanes[status].map((task, index) => ({
+        taskId: task.id,
+        status: task.status,
+        position: index,
+      })),
+    );
+
+    void reorderTasks(movedTask.projectId, items);
   };
 
   return (

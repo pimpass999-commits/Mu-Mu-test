@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTaskFlow } from '../hooks/useTaskFlow';
 import { Sidebar } from '../components/layout/Sidebar';
@@ -8,7 +8,7 @@ import { User, Bell, Shield, Palette, Globe, Mail, CheckCircle2 } from 'lucide-r
 import { cn } from '../utils/cn';
 
 interface SettingsProps {
-  onLogout: () => void;
+  onLogout: () => Promise<void> | void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({ onLogout }) => {
@@ -24,8 +24,17 @@ export const Settings: React.FC<SettingsProps> = ({ onLogout }) => {
   
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
 
-  const handleLogout = () => {
-    onLogout();
+  useEffect(() => {
+    setProfileForm({
+      name: currentUser.name,
+      email: currentUser.email,
+      role: currentUser.role,
+      avatar: currentUser.avatar,
+    });
+  }, [currentUser]);
+
+  const handleLogout = async () => {
+    await onLogout();
     navigate('/');
   };
 
@@ -34,23 +43,24 @@ export const Settings: React.FC<SettingsProps> = ({ onLogout }) => {
     setProfileForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     setSaveStatus('saving');
-    
-    // Simulate API call
-    setTimeout(() => {
-      updateCurrentUser({
+
+    try {
+      await updateCurrentUser({
         name: profileForm.name,
         email: profileForm.email,
         role: profileForm.role,
-        avatar: profileForm.avatar
+        avatar: profileForm.avatar,
       });
       setSaveStatus('success');
-      
-      setTimeout(() => {
+
+      window.setTimeout(() => {
         setSaveStatus('idle');
       }, 3000);
-    }, 800);
+    } catch {
+      setSaveStatus('idle');
+    }
   };
 
   const sections = [
@@ -156,7 +166,7 @@ export const Settings: React.FC<SettingsProps> = ({ onLogout }) => {
                   <Button 
                     variant="primary" 
                     size="sm" 
-                    onClick={section.onSave}
+                    onClick={section.onSave ? () => void section.onSave() : undefined}
                     disabled={section.id === 'profile' && saveStatus === 'saving'}
                   >
                     {section.id === 'profile' && saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
@@ -171,7 +181,7 @@ export const Settings: React.FC<SettingsProps> = ({ onLogout }) => {
                 <p className="text-sm text-red-700 dark:text-red-500/80">Permanently delete your account and all project data.</p>
               </div>
               <div className="flex gap-3">
-                <Button variant="ghost" size="sm" onClick={handleLogout} className="text-slate-600 dark:text-slate-400">Sign Out</Button>
+                <Button variant="ghost" size="sm" onClick={() => void handleLogout()} className="text-slate-600 dark:text-slate-400">Sign Out</Button>
                 <Button variant="danger" size="sm">Delete Account</Button>
               </div>
             </div>

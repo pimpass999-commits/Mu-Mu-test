@@ -17,7 +17,7 @@ import { TaskDetailModal } from '../components/modals/TaskDetailModal';
 export const ProjectDetail: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { projects, tasks, users } = useTaskFlow();
+  const { projects, tasks, users, isLoading } = useTaskFlow();
   const [view, setView] = useState<'kanban' | 'list' | 'workflow'>('kanban');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,12 +30,17 @@ export const ProjectDetail: React.FC = () => {
   };
 
   const project = projects.find(p => p.id === projectId);
-  if (!project) return <div>Project not found</div>;
-
-  const projectTasks = tasks.filter(t => t.projectId === projectId && 
-    (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-     t.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  const projectTasks = tasks.filter(t => t.projectId === projectId);
+  const filteredProjectTasks = projectTasks.filter(t =>
+    t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (isLoading && !project) {
+    return <div className="p-6 text-slate-500 dark:text-slate-400">Loading project...</div>;
+  }
+
+  if (!project) return <div>Project not found</div>;
 
   const projectMembers = users.filter(u => project.memberIds.includes(u.id));
 
@@ -163,7 +168,7 @@ export const ProjectDetail: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {projectTasks.map((task) => {
+                  {filteredProjectTasks.map((task) => {
                     const assignee = users.find(u => u.id === task.assigneeId);
                     return (
                       <tr
@@ -200,7 +205,7 @@ export const ProjectDetail: React.FC = () => {
                   })}
                 </tbody>
               </table>
-              {projectTasks.length === 0 && (
+              {filteredProjectTasks.length === 0 && (
                 <div className="p-12 text-center">
                   <p className="text-slate-500 dark:text-slate-400">No tasks found matching your search.</p>
                 </div>
@@ -209,7 +214,7 @@ export const ProjectDetail: React.FC = () => {
           ) : (
             <div className="space-y-8 py-4">
               {(['To Do', 'In Progress', 'Review', 'Done'] as Status[]).map((status, index, array) => {
-                const statusTasks = projectTasks.filter(t => t.status === status);
+                const statusTasks = filteredProjectTasks.filter(t => t.status === status);
                 return (
                   <div key={status} className="relative">
                     <div className="flex items-center gap-4 mb-6">

@@ -28,26 +28,41 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
   const [dueDate, setDueDate] = useState('');
   const [selectedColor, setSelectedColor] = useState(COLORS[0]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !dueDate) return;
-
-    addProject({
-      name,
-      description,
-      dueDate,
-      color: selectedColor,
-      memberIds: selectedMembers,
-    });
-    
-    onClose();
-    // Reset form
+  const resetForm = () => {
     setName('');
     setDescription('');
     setDueDate('');
     setSelectedColor(COLORS[0]);
     setSelectedMembers([]);
+    setError('');
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!name || !dueDate) return;
+
+    setIsSaving(true);
+    setError('');
+
+    try {
+      await addProject({
+        name,
+        description,
+        dueDate,
+        color: selectedColor,
+        memberIds: selectedMembers,
+      });
+
+      resetForm();
+      onClose();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Unable to create project');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const toggleMember = (userId: string) => {
@@ -179,13 +194,19 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
                   ))}
                 </div>
               </div>
+
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                  {error}
+                </div>
+              )}
             </form>
 
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-end gap-3">
-              <Button variant="outline" onClick={onClose}>
+              <Button variant="outline" onClick={onClose} disabled={isSaving}>
                 Cancel
               </Button>
-              <Button variant="primary" onClick={handleSubmit} disabled={!name || !dueDate}>
+              <Button variant="primary" onClick={() => void handleSubmit()} disabled={!name || !dueDate || isSaving} isLoading={isSaving}>
                 Create Project
               </Button>
             </div>

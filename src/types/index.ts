@@ -37,6 +37,7 @@ export interface Task {
   updatedAt: string;
   commentCount: number;
   tags: string[];
+  position?: number;
 }
 
 export interface Comment {

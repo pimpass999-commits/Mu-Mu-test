@@ -1,6 +1,26 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Project, Task, Comment, Status, Priority } from '../types';
-import { mockUsers, mockProjects, mockTasks, mockComments } from '../data/mockData';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { Comment, Project, Task, User } from '../types';
+import {
+  createComment as createCommentRequest,
+  createProject as createProjectRequest,
+  createTask as createTaskRequest,
+  deleteTask as deleteTaskRequest,
+  listComments,
+  listProjects,
+  listTasks,
+  listUsers,
+  reorderProjectTasks,
+  updateMe,
+  updateTask as updateTaskRequest,
+} from '../lib/api';
+
+const EMPTY_USER: User = {
+  id: '',
+  name: '',
+  email: '',
+  role: '',
+  avatar: '',
+};
 
 interface TaskFlowContextType {
   users: User[];
@@ -8,96 +28,187 @@ interface TaskFlowContextType {
   tasks: Task[];
   comments: Comment[];
   currentUser: User;
-  addProject: (project: Omit<Project, 'id' | 'progress'>) => void;
-  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'commentCount'>) => void;
-  updateTask: (taskId: string, updates: Partial<Task>) => void;
-  deleteTask: (taskId: string) => void;
-  addComment: (taskId: string, content: string) => void;
-  reorderTasks: (newTasks: Task[]) => void;
-  updateCurrentUser: (updates: Partial<User>) => void;
+  isLoading: boolean;
+  addProject: (project: Omit<Project, 'id' | 'progress'>) => Promise<void>;
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'commentCount' | 'position'>) => Promise<void>;
+  updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  deleteTask: (taskId: string) => Promise<void>;
+  addComment: (taskId: string, content: string) => Promise<void>;
+  loadComments: (taskId: string) => Promise<void>;
+  reorderTasks: (
+    projectId: string,
+    items: Array<{ taskId: string; status: Task['status']; position: number }>,
+  ) => Promise<void>;
+  updateCurrentUser: (updates: Partial<User>) => Promise<void>;
 }
 
 const TaskFlowContext = createContext<TaskFlowContextType | undefined>(undefined);
 
-export const TaskFlowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [comments, setComments] = useState<Comment[]>(mockComments);
-  const [currentUser, setCurrentUser] = useState<User>(() => {
-    const savedUser = localStorage.getItem('currentUser');
-    return savedUser ? JSON.parse(savedUser) : mockUsers[0];
-  });
+interface TaskFlowProviderProps {
+  children: React.ReactNode;
+  currentUser: User | null;
+  isAuthenticated: boolean;
+}
+
+export const TaskFlowProvider: React.FC<TaskFlowProviderProps> = ({
+  children,
+  currentUser: authUser,
+  isAuthenticated,
+}) => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [currentUser, setCurrentUser] = useState<User>(authUser ?? EMPTY_USER);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-  }, [currentUser]);
+    setCurrentUser(authUser ?? EMPTY_USER);
+  }, [authUser]);
 
-  const addProject = (projectData: Omit<Project, 'id' | 'progress'>) => {
-    const newProject: Project = {
-      ...projectData,
-      id: `p${projects.length + 1}`,
-      progress: 0,
+  useEffect(() => {
+    let ignore = false;
+
+    const loadData = async () => {
+      if (!isAuthenticated) {
+        if (!ignore) {
+          setUsers([]);
+          setProjects([]);
+          setTasks([]);
+          setComments([]);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        const [nextUsers, nextProjects, nextTasks] = await Promise.all([
+          listUsers(),
+          listProjects(),
+          listTasks(),
+        ]);
+
+        if (!ignore) {
+          setUsers(nextUsers);
+          setProjects(nextProjects);
+          setTasks(nextTasks);
+          setComments([]);
+        }
+      } catch (error) {
+        if (!ignore) {
+          console.error('Failed to load TaskFlow data', error);
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
+      }
     };
-    setProjects([...projects, newProject]);
-  };
 
-  const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'commentCount'>) => {
-    const newTask: Task = {
-      ...taskData,
-      id: `t${tasks.length + 1}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      commentCount: 0,
+    void loadData();
+
+    return () => {
+      ignore = true;
     };
-    setTasks([...tasks, newTask]);
+  }, [isAuthenticated, authUser?.id]);
+
+  const loadComments = useCallback(async (taskId: string) => {
+    const nextComments = await listComments(taskId);
+    setComments((prev) => [
+      ...prev.filter((comment) => comment.taskId !== taskId),
+      ...nextComments,
+    ]);
+  }, []);
+
+  const addProject = async (projectData: Omit<Project, 'id' | 'progress'>) => {
+    const newProject = await createProjectRequest(projectData);
+    setProjects((prev) => [...prev, newProject]);
   };
 
-  const updateTask = (taskId: string, updates: Partial<Task>) => {
-    setTasks(tasks.map(t => t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t));
+  const addTask = async (
+    taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'commentCount' | 'position'>,
+  ) => {
+    const newTask = await createTaskRequest(taskData);
+    setTasks((prev) => [...prev, newTask]);
   };
 
-  const deleteTask = (taskId: string) => {
-    setTasks(tasks.filter(t => t.id !== taskId));
+  const updateTask = async (taskId: string, updates: Partial<Task>) => {
+    const updatedTask = await updateTaskRequest(taskId, updates);
+    setTasks((prev) => prev.map((task) => (task.id === taskId ? updatedTask : task)));
   };
 
-  const reorderTasks = (newTasks: Task[]) => {
-    setTasks(newTasks);
+  const deleteTask = async (taskId: string) => {
+    await deleteTaskRequest(taskId);
+    setTasks((prev) => prev.filter((task) => task.id !== taskId));
+    setComments((prev) => prev.filter((comment) => comment.taskId !== taskId));
   };
 
-  const addComment = (taskId: string, content: string) => {
-    const newComment: Comment = {
-      id: `c${comments.length + 1}`,
-      taskId,
-      authorId: currentUser.id,
-      content,
-      createdAt: new Date().toISOString(),
+  const addComment = async (taskId: string, content: string) => {
+    const newComment = await createCommentRequest(taskId, content);
+
+    setComments((prev) => {
+      const nextComments = prev.filter((comment) => comment.id !== newComment.id);
+      return [newComment, ...nextComments];
+    });
+
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId
+          ? { ...task, commentCount: task.commentCount + 1 }
+          : task,
+      ),
+    );
+  };
+
+  const reorderTasks = async (
+    projectId: string,
+    items: Array<{ taskId: string; status: Task['status']; position: number }>,
+  ) => {
+    const reorderedTasks = await reorderProjectTasks(projectId, items);
+    setTasks((prev) => [
+      ...prev.filter((task) => task.projectId !== projectId),
+      ...reorderedTasks,
+    ]);
+  };
+
+  const updateCurrentUser = async (updates: Partial<User>) => {
+    const mergedUser = {
+      ...currentUser,
+      ...updates,
     };
-    setComments([...comments, newComment]);
-    updateTask(taskId, { commentCount: tasks.find(t => t.id === taskId)!.commentCount + 1 });
-  };
 
-  const updateCurrentUser = (updates: Partial<User>) => {
-    const updatedUser = { ...currentUser, ...updates };
+    const updatedUser = await updateMe({
+      name: mergedUser.name,
+      email: mergedUser.email,
+      role: mergedUser.role,
+      avatar: mergedUser.avatar,
+    });
+
     setCurrentUser(updatedUser);
-    setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
+    setUsers((prev) => prev.map((user) => (user.id === updatedUser.id ? updatedUser : user)));
   };
 
   return (
-    <TaskFlowContext.Provider value={{
-      users,
-      projects,
-      tasks,
-      comments,
-      currentUser,
-      addProject,
-      addTask,
-      updateTask,
-      deleteTask,
-      addComment,
-      reorderTasks,
-      updateCurrentUser
-    }}>
+    <TaskFlowContext.Provider
+      value={{
+        users,
+        projects,
+        tasks,
+        comments,
+        currentUser,
+        isLoading,
+        addProject,
+        addTask,
+        updateTask,
+        deleteTask,
+        addComment,
+        loadComments,
+        reorderTasks,
+        updateCurrentUser,
+      }}
+    >
       {children}
     </TaskFlowContext.Provider>
   );

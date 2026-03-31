@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -15,37 +15,64 @@ interface TaskDetailModalProps {
 }
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, onClose }) => {
-  const { users, projects, comments, addComment, updateTask, deleteTask, currentUser } = useTaskFlow();
+  const { tasks, users, projects, comments, addComment, loadComments, updateTask, deleteTask, currentUser } = useTaskFlow();
   const [commentText, setCommentText] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [commentError, setCommentError] = useState('');
 
-  if (!task) return null;
+  const liveTask = task ? tasks.find((item) => item.id === task.id) ?? task : null;
 
-  const assignee = users.find(u => u.id === task.assigneeId);
-  const project = projects.find(p => p.id === task.projectId);
+  useEffect(() => {
+    if (isOpen && liveTask) {
+      void loadComments(liveTask.id);
+    }
+  }, [isOpen, liveTask, loadComments]);
+
+  if (!liveTask) return null;
+
+  const assignee = users.find(u => u.id === liveTask.assigneeId);
+  const project = projects.find(p => p.id === liveTask.projectId);
   const taskComments = comments
-    .filter(c => c.taskId === task.id)
+    .filter(c => c.taskId === liveTask.id)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const handleStatusChange = (newStatus: Status) => {
-    updateTask(task.id, { status: newStatus });
+  const handleStatusChange = async (newStatus: Status) => {
+    setIsSaving(true);
+    try {
+      await updateTask(liveTask.id, { status: newStatus });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handlePriorityChange = (newPriority: Priority) => {
-    updateTask(task.id, { priority: newPriority });
+  const handlePriorityChange = async (newPriority: Priority) => {
+    setIsSaving(true);
+    try {
+      await updateTask(liveTask.id, { priority: newPriority });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this task?')) {
-      deleteTask(task.id);
+      setIsSaving(true);
+      await deleteTask(liveTask.id);
       onClose();
     }
   };
 
-  const handleAddComment = (e: React.FormEvent) => {
+  const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
-    addComment(task.id, commentText);
-    setCommentText('');
+    setCommentError('');
+
+    try {
+      await addComment(liveTask.id, commentText);
+      setCommentText('');
+    } catch (error) {
+      setCommentError(error instanceof Error ? error.message : 'Unable to add comment');
+    }
   };
 
   const statuses: Status[] = ['To Do', 'In Progress', 'Review', 'Done'];
@@ -63,16 +90,16 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
           <div>
             <div className="flex items-center gap-2 mb-2">
               {project && (
-                <Badge variant="default" className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-none">
+              <Badge variant="default" className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-none">
                   {project.name}
                 </Badge>
               )}
-              <Badge variant={task.status === 'Done' ? 'success' : 'default'}>
-                {task.status}
+              <Badge variant={liveTask.status === 'Done' ? 'success' : 'default'}>
+                {liveTask.status}
               </Badge>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{task.title}</h2>
-            <p className="text-slate-600 dark:text-slate-400 mt-3 leading-relaxed">{task.description}</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{liveTask.title}</h2>
+            <p className="text-slate-600 dark:text-slate-400 mt-3 leading-relaxed">{liveTask.description}</p>
           </div>
 
           <div className="space-y-4">
@@ -99,6 +126,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
                 </div>
               </div>
             </form>
+
+            {commentError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                {commentError}
+              </div>
+            )}
 
             <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
               {taskComments.length > 0 ? (
@@ -143,7 +176,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
               <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 block">Due Date</label>
               <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
                 <Calendar className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                <span className="text-sm font-medium">{format(new Date(task.dueDate), 'MMM d, yyyy')}</span>
+                <span className="text-sm font-medium">{format(new Date(liveTask.dueDate), 'MMM d, yyyy')}</span>
               </div>
             </div>
 
@@ -156,10 +189,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
                     onClick={() => handleStatusChange(s)}
                     className={cn(
                       "px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border",
-                      task.status === s 
+                      liveTask.status === s 
                         ? "bg-blue-600 text-white border-blue-600 shadow-sm" 
                         : "bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                     )}
+                    disabled={isSaving}
                   >
                     {s}
                   </button>
@@ -176,13 +210,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
                     onClick={() => handlePriorityChange(p)}
                     className={cn(
                       "px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border",
-                      task.priority === p 
+                      liveTask.priority === p 
                         ? p === 'Urgent' ? "bg-red-600 text-white border-red-600" :
                           p === 'High' ? "bg-orange-500 text-white border-orange-500" :
                           p === 'Medium' ? "bg-blue-500 text-white border-blue-500" :
                           "bg-slate-600 text-white border-slate-600"
                         : "bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                     )}
+                    disabled={isSaving}
                   >
                     {p}
                   </button>
@@ -194,7 +229,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, isOpen, 
               <Button 
                 variant="outline" 
                 className="w-full text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/30 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-900/50 flex items-center justify-center gap-2"
-                onClick={handleDelete}
+                onClick={() => void handleDelete()}
+                disabled={isSaving}
               >
                 <Trash2 className="h-4 w-4" />
                 Delete Task

@@ -17,10 +17,36 @@ export default defineConfig(({mode}) => {
         'framer-motion': path.resolve(__dirname, 'node_modules/framer-motion/dist/cjs/index.js'),
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('recharts')) {
+              return 'charts';
+            }
+            if (id.includes('react-router')) {
+              return 'router';
+            }
+            if (id.includes('@hello-pangea/dnd')) {
+              return 'dnd';
+            }
+            if (id.includes('framer-motion')) {
+              return 'motion';
+            }
+          },
+        },
+      },
+    },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
+      proxy: {
+        '/api': {
+          target: 'http://localhost:4000',
+          changeOrigin: true,
+        },
+      },
     },
   };
 });
