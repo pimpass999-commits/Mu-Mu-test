@@ -86,19 +86,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskClick, on
             <div key={status} className="flex-shrink-0 w-80 flex flex-col">
               <div className="flex items-center justify-between mb-4 px-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-slate-900">{status}</h3>
-                  <span className="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-full">
+                  <h3 className="font-semibold text-slate-900 dark:text-white">{status}</h3>
+                  <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold px-2 py-0.5 rounded-full">
                     {columnTasks.length}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <button 
-                    className="p-1 text-slate-400 hover:text-slate-600 rounded transition-colors"
+                    className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors"
                     onClick={() => onAddTask?.(status)}
                   >
                     <Plus className="h-4 w-4" />
                   </button>
-                  <button className="p-1 text-slate-400 hover:text-slate-600 rounded transition-colors">
+                  <button className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 rounded transition-colors">
                     <MoreVertical className="h-4 w-4" />
                   </button>
                 </div>
@@ -110,8 +110,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskClick, on
                     {...provided.droppableProps}
                     ref={provided.innerRef}
                     className={cn(
-                      "flex-1 bg-slate-50/50 rounded-2xl p-3 space-y-3 border border-dashed border-slate-200 transition-colors",
-                      snapshot.isDraggingOver && "bg-blue-50/50 border-blue-200"
+                      "flex-1 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl p-3 space-y-3 border border-dashed border-slate-200 dark:border-slate-800 transition-colors",
+                      snapshot.isDraggingOver && "bg-blue-50/50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
                     )}
                   >
                     {columnTasks.map((task, index) => (
@@ -133,8 +133,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskClick, on
                     ))}
                     {provided.placeholder}
                     {columnTasks.length === 0 && !snapshot.isDraggingOver && (
-                      <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl">
-                        <p className="text-sm text-slate-400">No tasks</p>
+                      <div className="h-32 flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                        <p className="text-sm text-slate-400 dark:text-slate-500">No tasks</p>
                       </div>
                     )}
                   </div>

@@ -14,16 +14,24 @@ interface TaskFlowContextType {
   deleteTask: (taskId: string) => void;
   addComment: (taskId: string, content: string) => void;
   reorderTasks: (newTasks: Task[]) => void;
+  updateCurrentUser: (updates: Partial<User>) => void;
 }
 
 const TaskFlowContext = createContext<TaskFlowContextType | undefined>(undefined);
 
 export const TaskFlowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [users] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>(mockUsers);
   const [projects, setProjects] = useState<Project[]>(mockProjects);
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [comments, setComments] = useState<Comment[]>(mockComments);
-  const [currentUser] = useState<User>(mockUsers[0]); // Ava Chen as default
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    return savedUser ? JSON.parse(savedUser) : mockUsers[0];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  }, [currentUser]);
 
   const addProject = (projectData: Omit<Project, 'id' | 'progress'>) => {
     const newProject: Project = {
@@ -69,6 +77,12 @@ export const TaskFlowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateTask(taskId, { commentCount: tasks.find(t => t.id === taskId)!.commentCount + 1 });
   };
 
+  const updateCurrentUser = (updates: Partial<User>) => {
+    const updatedUser = { ...currentUser, ...updates };
+    setCurrentUser(updatedUser);
+    setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
+  };
+
   return (
     <TaskFlowContext.Provider value={{
       users,
@@ -81,7 +95,8 @@ export const TaskFlowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       updateTask,
       deleteTask,
       addComment,
-      reorderTasks
+      reorderTasks,
+      updateCurrentUser
     }}>
       {children}
     </TaskFlowContext.Provider>

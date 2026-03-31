@@ -9,26 +9,26 @@ export const RecentProjects: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-bottom border-slate-100 flex items-center justify-between">
-        <h3 className="font-semibold text-slate-900">Recent Projects</h3>
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
+      <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <h3 className="font-semibold text-slate-900 dark:text-white">Recent Projects</h3>
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1 transition-colors"
           >
             <Plus className="h-4 w-4" />
             New Project
           </button>
-          <Link to="/projects" className="text-sm font-medium text-slate-500 hover:text-slate-700">View All</Link>
+          <Link to="/projects" className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">View All</Link>
         </div>
       </div>
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-slate-100 dark:divide-slate-800">
         {projects.slice(0, 3).map((project) => (
           <Link
             key={project.id}
             to={`/projects/${project.id}`}
-            className="flex items-center p-6 hover:bg-slate-50 transition-colors"
+            className="flex items-center p-6 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm"
@@ -37,23 +37,23 @@ export const RecentProjects: React.FC = () => {
               {project.name.charAt(0)}
             </div>
             <div className="ml-4 flex-1">
-              <h4 className="font-semibold text-slate-900">{project.name}</h4>
-              <p className="text-sm text-slate-500 truncate max-w-xs">{project.description}</p>
+              <h4 className="font-semibold text-slate-900 dark:text-white">{project.name}</h4>
+              <p className="text-sm text-slate-500 dark:text-slate-400 truncate max-w-xs">{project.description}</p>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
-                <div className="flex items-center gap-1 text-xs font-medium text-slate-500 mb-1">
+                <div className="flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
                   <Users className="h-3 w-3" />
                   {project.memberIds.length} members
                 </div>
-                <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="w-24 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-600 rounded-full"
                     style={{ width: `${project.progress}%` }}
                   ></div>
                 </div>
               </div>
-              <button className="p-1 text-slate-400 hover:text-slate-600">
+              <button className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                 <MoreHorizontal className="h-5 w-5" />
               </button>
             </div>

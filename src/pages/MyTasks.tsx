@@ -35,15 +35,15 @@ export const MyTasks: React.FC = () => {
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <Header />
         <main className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">My Tasks</h1>
-              <p className="text-slate-500">Manage your personal work and deadlines.</p>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">My Tasks</h1>
+              <p className="text-slate-500 dark:text-slate-400">Manage your personal work and deadlines.</p>
             </div>
           </div>
 
@@ -57,7 +57,7 @@ export const MyTasks: React.FC = () => {
                     'w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all',
                     activeTab === tab.id
                       ? 'bg-blue-600 text-white shadow-lg shadow-blue-100'
-                      : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -66,7 +66,7 @@ export const MyTasks: React.FC = () => {
                   </div>
                   <span className={cn(
                     'text-xs px-2 py-0.5 rounded-full',
-                    activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                    activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                   )}>
                     {myTasks.filter(t => {
                       const today = new Date().toISOString().split('T')[0];
@@ -81,7 +81,7 @@ export const MyTasks: React.FC = () => {
             </div>
 
             <div className="flex-1 space-y-6">
-              <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
@@ -89,10 +89,10 @@ export const MyTasks: React.FC = () => {
                     placeholder="Search your tasks..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-slate-200 dark:placeholder-slate-500"
                   />
                 </div>
-                <button className="p-2 text-slate-400 hover:text-slate-600 rounded-lg border border-slate-200">
+                <button className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-800 transition-colors">
                   <Filter className="h-5 w-5" />
                 </button>
               </div>
@@ -104,12 +104,12 @@ export const MyTasks: React.FC = () => {
               </div>
 
               {filteredTasks.length === 0 && (
-                <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
-                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 className="h-8 w-8 text-slate-400" />
+                <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 transition-colors">
+                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 className="h-8 w-8 text-slate-400 dark:text-slate-500" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900">No tasks found</h3>
-                  <p className="text-slate-500 mt-1">You're all caught up! Enjoy your day.</p>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">No tasks found</h3>
+                  <p className="text-slate-500 dark:text-slate-400 mt-1">You're all caught up! Enjoy your day.</p>
                 </div>
               )}
             </div>

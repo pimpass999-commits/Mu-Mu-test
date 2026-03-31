@@ -3,10 +3,10 @@ import { User, Project, Task, Comment } from '../types';
 export const mockUsers: User[] = [
   {
     id: "u1",
-    name: "Ava Chen",
-    email: "ava@example.com",
+    name: "MuMu",
+    email: "pimpass999@gmail.com",
     role: "Product Manager",
-    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Ava"
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=MuMu"
   },
   {
     id: "u2",

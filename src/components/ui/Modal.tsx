@@ -35,15 +35,15 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]`}
+            className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors`}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-bottom border-slate-100">
-              <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-              <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h3>
+              <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full dark:hover:bg-slate-800 dark:text-slate-400">
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-6 text-slate-600 dark:text-slate-300">
               {children}
             </div>
           </motion.div>
