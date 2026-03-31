@@ -149,6 +149,47 @@ npm run prisma:migrate
 npm run prisma:seed
 ```
 
+## Docker
+
+This project can run in Docker Desktop with two containers:
+- `taskflow-web` for the frontend
+- `taskflow-api` for the backend
+
+SQLite data is persisted in a Docker volume named `taskflow_data`.
+
+Start the stack:
+
+```bash
+docker compose up --build
+```
+
+Run in the background:
+
+```bash
+docker compose up --build -d
+```
+
+Stop the stack:
+
+```bash
+docker compose down
+```
+
+Stop and remove the persisted SQLite volume:
+
+```bash
+docker compose down -v
+```
+
+Docker URLs:
+- Frontend: `http://localhost:8080`
+- Backend: `http://localhost:4001`
+- Health check: `http://localhost:4001/api/health`
+
+The Docker API container automatically:
+- applies Prisma migrations on startup
+- seeds the database on first run if the SQLite file does not exist
+
 ## API Overview
 
 Base path: `/api`

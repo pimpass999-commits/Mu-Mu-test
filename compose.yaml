@@ -1,0 +1,35 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: taskflow-api
+    environment:
+      PORT: "4000"
+      CLIENT_URL: "http://localhost:8080"
+      DATABASE_URL: "file:/data/taskflow.db"
+      JWT_ACCESS_SECRET: "docker-local-access-secret-change-me"
+      JWT_REFRESH_SECRET: "docker-local-refresh-secret-change-me"
+      ACCESS_TOKEN_TTL: "15m"
+      REFRESH_TOKEN_TTL_DAYS: "30"
+      BCRYPT_SALT_ROUNDS: "12"
+      NODE_ENV: "production"
+    volumes:
+      - taskflow_data:/data
+    ports:
+      - "4001:4000"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: taskflow-web
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  taskflow_data:
