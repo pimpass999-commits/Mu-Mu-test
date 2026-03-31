@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { CheckSquare, ArrowRight, Shield, Zap, Users, BarChart3, Globe, Github } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 
 export const Landing: React.FC = () => {
   return (

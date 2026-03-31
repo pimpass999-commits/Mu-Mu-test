@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Palette, Calendar, Users } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../ui/Button';
 import { useTaskFlow } from '../../hooks/useTaskFlow';
 import { cn } from '../../utils/cn';
