@@ -1,5 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
+import { prisma } from "../lib/prisma.js";
 import { ApiError } from "../lib/http.js";
+import { getCachedSessionState, markSessionActive, markSessionRevoked } from "../lib/session-cache.js";
 import { verifyAccessToken } from "../lib/auth.js";
 
 export interface AuthenticatedRequest extends Request {
@@ -29,7 +31,40 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
       email: payload.email,
       sessionId: payload.sessionId,
     };
-    next();
+
+    const cachedState = getCachedSessionState(payload.sessionId);
+    if (cachedState === false) {
+      next(new ApiError(401, "Session is no longer active"));
+      return;
+    }
+
+    if (cachedState === true) {
+      next();
+      return;
+    }
+
+    prisma.session.findFirst({
+      where: {
+        id: payload.sessionId,
+        userId: payload.sub,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      select: { id: true },
+    })
+      .then((session) => {
+        if (!session) {
+          markSessionRevoked(payload.sessionId);
+          next(new ApiError(401, "Session is no longer active"));
+          return;
+        }
+
+        markSessionActive(payload.sessionId);
+        next();
+      })
+      .catch(() => {
+        next(new ApiError(401, "Invalid or expired access token"));
+      });
   } catch {
     next(new ApiError(401, "Invalid or expired access token"));
   }

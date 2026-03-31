@@ -2,12 +2,18 @@ import { addDays } from "date-fns";
 import { prisma } from "../lib/prisma.js";
 import { ApiError } from "../lib/http.js";
 import {
+  compareTokenHashes,
   createRefreshTokenHash,
   signAccessToken,
   signRefreshToken,
   verifyPassword,
   verifyRefreshToken,
 } from "../lib/auth.js";
+import {
+  invalidateSessionCache,
+  markSessionActive,
+  markSessionRevoked,
+} from "../lib/session-cache.js";
 import { toPublicUser } from "../utils/serializers.js";
 import { env } from "../env.js";
 
@@ -50,6 +56,7 @@ export async function loginUser(input: {
     where: { id: session.id },
     data: { refreshTokenHash: createRefreshTokenHash(refreshToken) },
   });
+  markSessionActive(session.id);
 
   return {
     user: toPublicUser(user),
@@ -74,8 +81,11 @@ export async function refreshUserSession(refreshToken: string) {
     !session ||
     session.revokedAt ||
     session.expiresAt < new Date() ||
-    session.refreshTokenHash !== createRefreshTokenHash(refreshToken)
+    !compareTokenHashes(session.refreshTokenHash, createRefreshTokenHash(refreshToken))
   ) {
+    if (session) {
+      markSessionRevoked(session.id);
+    }
     throw new ApiError(401, "Refresh token is invalid or expired");
   }
 
@@ -97,6 +107,7 @@ export async function refreshUserSession(refreshToken: string) {
       expiresAt: addDays(new Date(), env.REFRESH_TOKEN_TTL_DAYS),
     },
   });
+  markSessionActive(session.id);
 
   return {
     accessToken: newAccessToken,
@@ -110,6 +121,7 @@ export async function logoutUser(sessionId: string) {
     where: { id: sessionId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+  markSessionRevoked(sessionId);
 }
 
 export async function getCurrentUser(userId: string) {

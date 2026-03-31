@@ -6,9 +6,9 @@ import {
   clearStoredSession,
   getCurrentUser,
   getStoredCurrentUser,
-  hasStoredSession,
   login as loginRequest,
   logout as logoutRequest,
+  restoreSession,
 } from './lib/api';
 import { User } from './types';
 
@@ -30,8 +30,10 @@ export default function App() {
     let ignore = false;
 
     const bootstrapAuth = async () => {
-      if (!hasStoredSession()) {
+      const restored = await restoreSession();
+      if (!restored) {
         if (!ignore) {
+          clearStoredSession();
           setCurrentUser(null);
           setIsAuthLoading(false);
         }

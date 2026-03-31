@@ -3,6 +3,7 @@ import { Comment, Project, Task, User } from '../types';
 const API_BASE = '/api';
 const ACCESS_TOKEN_KEY = 'taskflow.accessToken';
 const CURRENT_USER_KEY = 'currentUser';
+let inMemoryAccessToken: string | null = null;
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
@@ -124,39 +125,107 @@ function buildUrl(path: string, query?: Record<string, string | number | undefin
   return `${url.pathname}${url.search}`;
 }
 
+function readSessionStorage(key: string) {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionStorage(key: string, value: string) {
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    // Ignore storage errors and keep the token in memory only.
+  }
+}
+
+function removeSessionStorage(key: string) {
+  try {
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
+function readLocalStorage(key: string) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function removeLocalStorage(key: string) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
 function getStoredAccessToken() {
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+  if (inMemoryAccessToken) {
+    return inMemoryAccessToken;
+  }
+
+  const sessionToken = readSessionStorage(ACCESS_TOKEN_KEY);
+  if (sessionToken) {
+    inMemoryAccessToken = sessionToken;
+    return sessionToken;
+  }
+
+  const legacyToken = readLocalStorage(ACCESS_TOKEN_KEY);
+  if (legacyToken) {
+    inMemoryAccessToken = legacyToken;
+    writeSessionStorage(ACCESS_TOKEN_KEY, legacyToken);
+    removeLocalStorage(ACCESS_TOKEN_KEY);
+    return legacyToken;
+  }
+
+  return null;
 }
 
 function setStoredAccessToken(token: string) {
-  localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  inMemoryAccessToken = token;
+  writeSessionStorage(ACCESS_TOKEN_KEY, token);
+  removeLocalStorage(ACCESS_TOKEN_KEY);
 }
 
 export function getStoredCurrentUser() {
-  const rawUser = localStorage.getItem(CURRENT_USER_KEY);
+  const rawUser = readSessionStorage(CURRENT_USER_KEY) ?? readLocalStorage(CURRENT_USER_KEY);
   if (!rawUser) {
     return null;
   }
 
   try {
-    return JSON.parse(rawUser) as User;
+    const user = JSON.parse(rawUser) as User;
+    writeSessionStorage(CURRENT_USER_KEY, rawUser);
+    removeLocalStorage(CURRENT_USER_KEY);
+    return user;
   } catch {
-    localStorage.removeItem(CURRENT_USER_KEY);
+    removeSessionStorage(CURRENT_USER_KEY);
+    removeLocalStorage(CURRENT_USER_KEY);
     return null;
   }
 }
 
 function setStoredCurrentUser(user: User) {
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+  writeSessionStorage(CURRENT_USER_KEY, JSON.stringify(user));
+  removeLocalStorage(CURRENT_USER_KEY);
 }
 
 export function clearStoredSession() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(CURRENT_USER_KEY);
+  inMemoryAccessToken = null;
+  removeSessionStorage(ACCESS_TOKEN_KEY);
+  removeSessionStorage(CURRENT_USER_KEY);
+  removeLocalStorage(ACCESS_TOKEN_KEY);
+  removeLocalStorage(CURRENT_USER_KEY);
 }
 
 export function hasStoredSession() {
-  return Boolean(getStoredAccessToken());
+  return Boolean(getStoredAccessToken() || readSessionStorage(CURRENT_USER_KEY));
 }
 
 function toUser(user: BackendUser): User {
@@ -255,6 +324,14 @@ async function refreshAccessToken() {
   })();
 
   return refreshPromise;
+}
+
+export async function restoreSession() {
+  if (getStoredAccessToken()) {
+    return true;
+  }
+
+  return refreshAccessToken();
 }
 
 async function request<T>(
